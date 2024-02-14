@@ -1,198 +1,185 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.OleDb;
+using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using Aspose.Email.Mapi;
 using Aspose.Email.Storage.Pst;
 using OfficeOpenXml;
-using System.Data;
-using System.Data.OleDb;
-using System.Text.RegularExpressions;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Drawing2D;
 
 namespace EmailProjectConsole
 {
     public partial class Form1 : Form
     {
         private Button button1;
-        private Button button2;
         private Button button3;
-        private CheckedListBox checkedListBox;
+        private CheckBox selectall;
+        private CheckedListBox checkedListBox;// Updated to use CustomCheckedListBox
         private string selectedPSTFilePath;
         private Label lblFileInfo;
         private Label lblFileInfo1;
+        private Label lblFileInfo2;
         private Label step1;
-        private Label step2;
+
         private Label step3;
         private Panel panelDragAndDrop;
 
-        
 
         public Form1()
         {
-
             InitializeComponent();
             InitializePanel();
             InitializeDragAndDrop();
-            this.Text = "PST Exctractor";
-            this.button1 = new Button();
-            this.button2 = new Button();
-            this.button3 = new Button();
-            this.checkedListBox = new CheckedListBox();
 
-            this.button1.Text = "Upload PST File";
+            this.Text = "PST Extractor";
+            this.button1 = new Button();
+            this.button1.Text = "Browse Files";
             this.button1.Click += new EventHandler(button1_Click);
             this.button1.Size = new System.Drawing.Size(200, 23);
-            this.button1.Location = new System.Drawing.Point(350, 60);
-            this.checkedListBox.Items.AddRange(new object[] { "Name", "Address", "Subject", "Body", "Date & Time" });
-            this.checkedListBox.Location = new System.Drawing.Point(350, 200);
-            this.button2.Text = "Export To Excel";
-            this.button2.Click += new EventHandler(button2_Click);
-            this.button2.Size = new System.Drawing.Size(200, 23);
-            this.button2.Location = new System.Drawing.Point(350, 404);
-            this.button3.Text = "Export To Excel";
-            this.button3.Click += new EventHandler(button3_Click);
-            this.button3.Size = new System.Drawing.Size(200, 23);
-            this.button3.Location = new System.Drawing.Point(350, 404);
-            this.button3.Visible = false;
+            this.button1.Location = new System.Drawing.Point(100, 420);
+            this.button1.Visible = true; // Set visibility to true
+            this.button1.BackColor = Color.White;
             this.Controls.Add(this.button1);
-            this.Controls.Add(this.button2);
+
+            this.button3 = new Button();
+
+            this.selectall = new CheckBox();
+            this.selectall.Text= "Select All";
+            this.selectall.Size = new System.Drawing.Size(200, 23);
+            this.selectall.Location = new System.Drawing.Point(500, 160);
+            this.selectall.Font = new Font("Arial", 14);
+            this.Controls.Add(this.selectall);
+            this.selectall.CheckedChanged += new EventHandler(selectallchange);
+
+
+
+            // Use the updated CustomCheckedListBox
+            this.checkedListBox = new CheckedListBox();
+            this.checkedListBox.Items.AddRange(new object[] { "Name", "Address", "Subject", "Body", "Categories", "Date & Time", "Last Email From Each Address" });
+            this.checkedListBox.Location = new System.Drawing.Point(500, 190);
+            this.checkedListBox.Size = new System.Drawing.Size(300, 250);
+
+            this.checkedListBox.BorderStyle = BorderStyle.FixedSingle;
+
+
+
+
+            this.button3.Text = "Export To Excel";
+            this.button3.Click += new EventHandler(button2_Click);
+            this.button3.Size = new System.Drawing.Size(200, 23);
+            this.button3.Location = new System.Drawing.Point(600, 417);
+            this.button3.Visible = false;
+            this.button3.BackColor = Color.LightGreen;
+
             this.Controls.Add(this.button3);
             this.Controls.Add(this.checkedListBox);
-
 
             this.lblFileInfo = new Label();
             this.lblFileInfo.Size = new System.Drawing.Size(300, 20);
             this.lblFileInfo.Location = new System.Drawing.Point(350, 150); // Adjust the location as needed
             this.lblFileInfo.Visible = false; // Initially set the visibility to false
+            this.lblFileInfo.Font = new Font("Arial", 14);
             this.Controls.Add(this.lblFileInfo);
 
-
-            this.lblFileInfo1 = new Label();
-            this.lblFileInfo1.Size = new System.Drawing.Size(300, 20);
-            this.lblFileInfo1.Location = new System.Drawing.Point(350, 100); // Adjust the location as needed
-            this.lblFileInfo1.Visible = true; // Initially set the visibility to false
-            this.lblFileInfo1.Text = "Drag and drop";
-            this.Controls.Add(this.lblFileInfo1);
-
-
             this.step1 = new Label();
-            this.step1.Size = new System.Drawing.Size(300, 20);
-            this.step1.Location = new System.Drawing.Point(350, 40); // Adjust the location as needed
-            this.step1.Text = $"Step 1 - Upload PST File";
+            this.step1.Size = new System.Drawing.Size(300, 30);
+            this.step1.Location = new System.Drawing.Point(100, 100); // Adjust the location as needed
+            this.step1.Text = $"Step 1: Upload PST File";
+            this.step1.Font = new Font("Arial", 14);
             this.Controls.Add(this.step1);
 
 
-            this.step2 = new Label();
-            this.step2.Size = new System.Drawing.Size(300, 20);
-            this.step2.Location = new System.Drawing.Point(350, 180); // Adjust the location as needed
-            this.step2.Text = $"Step 2 - Customise Extraction Information";
-            this.Controls.Add(this.step2);
-
-
-
             this.step3 = new Label();
-            this.step3.Size = new System.Drawing.Size(300, 20);
-            this.step3.Location = new System.Drawing.Point(350, 380); // Adjust the location as needed
-            this.step3.Text = $"Step 3 - Process and Save as Excel File";
+            this.step3.Size = new System.Drawing.Size(300, 30);
+            this.step3.Location = new System.Drawing.Point(500, 100); // Adjust the location as needed
+            this.step3.Text = $"Step 2: Filter By";
+            this.step3.Font = new Font("Arial", 14);
             this.Controls.Add(this.step3);
 
-
-            
-
-            ///////////////////////////////// styling  ///////////////////////////////////////
-
-            ////////////////////////////////color scheme////////////////////////////////////////
-
-            // Add these lines to your constructor
-            this.BackColor = Color.FromArgb(240, 240, 255); // Set a light lavender background color
+            // Styling
+            this.BackColor = Color.LightGray; // Set a light lavender background color
 
             // Example color scheme with calming tones
-            Color buttonColor = Color.FromArgb(128, 191, 219); // Sky blue
-            Color labelColor = Color.FromArgb(85, 96, 116); // Slate gray
-            Color whiteColor = Color.White;
+
 
             // Apply colors to controls
-            button1.BackColor = buttonColor;
-            button1.ForeColor = whiteColor; // Set text color
-            button2.BackColor = buttonColor;
-            button2.ForeColor = whiteColor;
             checkedListBox.BackColor = Color.White;
-            // Set text color
-            step1.BackColor = labelColor;
-            step1.ForeColor = whiteColor; // Set text color
-            step2.BackColor = labelColor;
-            step2.ForeColor = whiteColor; // Set text color
-            step3.BackColor = labelColor;
-            step3.ForeColor = whiteColor; // Set text color
 
-
-            //////////////////////font///////////////////////////////////
-
-            // Add these lines to your constructor
-            Font labelFont = new Font("Arial", 12, FontStyle.Bold); // Example font for labels
-            Font buttonFont = new Font("Arial", 10, FontStyle.Bold); // Example font for buttons
+            // Font
+            Font labelFont = new Font("Arial", 12); // Example font for labels
+            Font buttonFont = new Font("Arial", 12); // Example font for buttons
 
             // Apply fonts to controls
-            button1.Font = buttonFont;
-            button2.Font = buttonFont;
-            checkedListBox.Font = new Font("Arial", 10); // Example font for CheckedListBox
+            checkedListBox.Font = new Font("Arial", 15); // Example font for CustomCheckedListBox
             lblFileInfo.Font = labelFont;
-            step1.Font = labelFont;
-            step2.Font = labelFont;
-            step3.Font = labelFont;
-
-            ///////////////////////////////////alignment////////////////////////////////////////
-
-            button1.TextAlign = ContentAlignment.MiddleCenter; // Center the text in the button
-            button2.TextAlign = ContentAlignment.MiddleCenter;
-
-            lblFileInfo.TextAlign = ContentAlignment.MiddleCenter; // Align text to the center in the label
-            step1.TextAlign = ContentAlignment.MiddleLeft;
-            step2.TextAlign = ContentAlignment.MiddleLeft;
-            step3.TextAlign = ContentAlignment.MiddleLeft;
-
-
-
-
-
 
         }
+
         private void InitializePanel()
         {
             // Create the panel with specified properties
             panelDragAndDrop = new Panel
             {
-                Location = new Point(350, 80),
+                Location = new Point(100, 140),
                 Name = "panel1",
-                Size = new Size(200, 75),
+                Size = new Size(300, 280),
                 BackColor = Color.AliceBlue,
                 BorderStyle = BorderStyle.FixedSingle
             };
 
             // Create a label within the panel
-            lblFileInfo = new Label
-            {
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Visible = false
-            };
-
             lblFileInfo1 = new Label
             {
-                Dock = DockStyle.Fill,
+                Location = new Point(50, 100),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Visible = true,
-                Text = "Drag And Drop PST File"
-
-
+                Text = "Drag And Drop PST File",
+                Size = new Size(200, 60),
+                Font = new Font("Arial", 14)
             };
-            // Add the label to the panel
-            panelDragAndDrop.Controls.Add(lblFileInfo);
+            lblFileInfo2 = new Label
+            {
+                Location = new Point(50, 180),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Visible = true,
+                Text = "Or",
+                Size = new Size(200, 60),
+                Font = new Font("Arial", 14)
+                
+            };
+
+            // Use the class-level button1 instead of creating a new local one
+
+            // Adjust the values as needed
+            // Attach the event handler to the button click event
+
+            // Add the label and button to the panel
             panelDragAndDrop.Controls.Add(lblFileInfo1);
+            panelDragAndDrop.Controls.Add(lblFileInfo2);
+            panelDragAndDrop.Controls.Add(button1);
+
             // Add the panel to the form's Controls collection
             Controls.Add(panelDragAndDrop);
+        }
+        //private CheckBox selectall;
+       // private CheckedListBox checkedListBox;/
+
+        private void selectallchange(object sender, EventArgs e)
+        {
+            for (int i = 0; i < checkedListBox.Items.Count; i++)
+            {
+                if(selectall.Checked ==true)
+                {
+                    checkedListBox.SetItemChecked(i, true);
+                }
+                else
+                {
+                    checkedListBox.SetItemChecked(i, false);
+                }
+            }
         }
         private void InitializeDragAndDrop()
         {
@@ -209,7 +196,21 @@ namespace EmailProjectConsole
             // Check if the dragged data is a file
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
-                e.Effect = DragDropEffects.Copy;
+                // Get the array of file paths from the dropped data
+                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
+
+                // Check if all files have the ".pst" extension
+                bool allPstFiles = files.All(file => Path.GetExtension(file)?.Equals(".pst", StringComparison.OrdinalIgnoreCase) == true);
+
+                if (allPstFiles)
+                {
+                    e.Effect = DragDropEffects.Copy;
+                }
+                else
+                {
+                    // Display a message notifying the user that only PST files are allowed
+                    MessageBox.Show("Invalid File Type Please Upload A PST File.", "Invalid File Type", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
             }
         }
 
@@ -232,40 +233,26 @@ namespace EmailProjectConsole
             MessageBox.Show("File Uploaded: " + Path.GetFileName(filePath));
 
             // Update the label with file information
-            lblFileInfo.Text = $"File Upload Sucess: {Path.GetFileName(filePath)}";
-            lblFileInfo.Visible = true;
-            lblFileInfo1.Visible = false;
+            selectedPSTFilePath = filePath;
             panelDragAndDrop.AllowDrop = false;
             button3.Visible = true;
+            lblFileInfo2.Text = "Remove File";
+            lblFileInfo2.ForeColor = Color.Blue;
+            lblFileInfo2.Click += button3_Click;
+            lblFileInfo1.Text = $"Upload Successful: {Path.GetFileName(filePath)}";
+            
         }
-        private void RemovePST (string filepath)
+
+        private void RemovePST(string filepath)
         {
-            MessageBox.Show("PST File Removed: "+Path.GetFileName(filepath));
+            MessageBox.Show("PST File Removed: " + Path.GetFileName(filepath));
             panelDragAndDrop.AllowDrop = true;
-            lblFileInfo.Visible = false;
-            lblFileInfo1.Visible = true;
+            lblFileInfo1.Text = "Drag And Drop PST File";
+            lblFileInfo2.Text = $"Or";
+            lblFileInfo2.ForeColor = Color.Black;
+            button3.Visible = false;
         }
-    private void Form1_Paint(object sender, PaintEventArgs e)
-        {
-            int gradientStartX = 0;    // X-coordinate where the gradient starts
-            int gradientEndX = this.Width;   // X-coordinate where the gradient ends
 
-            using (LinearGradientBrush brush = new LinearGradientBrush(
-                new Point(gradientStartX, 0), new Point(gradientEndX, 0),
-                Color.DarkBlue, Color.Blue))
-            {
-                // Fill the left side with DarkBlue
-                e.Graphics.FillRectangle(brush, new Rectangle(0, 0, gradientStartX, this.Height));
-
-                // Fill the middle with Grey
-                brush.InterpolationColors = new ColorBlend
-                {
-                    Colors = new Color[] { Color.DarkBlue, Color.Gray, Color.Blue },
-                    Positions = new float[] { 0, 0.5f, 1 },
-                };
-                e.Graphics.FillRectangle(brush, new Rectangle(gradientStartX, 0, gradientEndX - gradientStartX, this.Height));
-            }
-        }
         private void button1_Click(object sender, EventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -273,9 +260,13 @@ namespace EmailProjectConsole
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 selectedPSTFilePath = openFileDialog.FileName; // Store the file path
-                lblFileInfo.Text = $"File uploaded: {Path.GetFileName(selectedPSTFilePath)}";
-                lblFileInfo.Visible = true; // Make the label visible
-                MessageBox.Show("PST file uploaded: " + Path.GetFileName(selectedPSTFilePath));
+                MessageBox.Show("Upload Successful: " + Path.GetFileName(selectedPSTFilePath));
+                button3.Visible = true;
+                lblFileInfo1.Text = $"Upload Successful: {Path.GetFileName(selectedPSTFilePath)}";
+                lblFileInfo2.Text = $"Remove File";
+                panelDragAndDrop.AllowDrop = false;
+                lblFileInfo2.ForeColor = Color.Blue;
+                lblFileInfo2.Click += button3_Click;
             }
         }
 
@@ -284,6 +275,10 @@ namespace EmailProjectConsole
             if (!string.IsNullOrEmpty(selectedPSTFilePath))
             {
                 Dictionary<string, EmailExportModel> emailList = ImportPST(selectedPSTFilePath);
+
+                // Check if the "Last Email From Each Address" item is checked
+                
+
                 SaveToExcel(emailList, checkedListBox);
             }
             else
@@ -291,11 +286,13 @@ namespace EmailProjectConsole
                 MessageBox.Show("Please upload a PST file first.");
             }
         }
+
         private void button3_Click(object sender, EventArgs e)
         {
             RemovePST(selectedPSTFilePath);
         }
-        private static void SaveToExcel(Dictionary<string, EmailExportModel> EmailList, CheckedListBox checkedListBox)
+
+        private static void SaveToExcel(Dictionary<string, EmailExportModel> emailList, CheckedListBox checkedListBox)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
@@ -307,12 +304,13 @@ namespace EmailProjectConsole
                 for (int i = 0; i < checkedListBox.CheckedItems.Count; i++)
                 {
                     string propertyName = checkedListBox.CheckedItems[i].ToString();
-                    worksheet.Cells[1, i + 1].Value = propertyName;
+                    if (propertyName != "Last Email From Each Address") { 
+                        worksheet.Cells[1, i + 1].Value = propertyName;
                 }
-
+                }
                 int rowNumber = 2;
 
-                foreach (var item in EmailList)
+                foreach (var item in emailList)
                 {
                     int colNumber = 1;
 
@@ -363,11 +361,10 @@ namespace EmailProjectConsole
                 }
             }
         }
-        //
+
         public static Dictionary<string, EmailExportModel> EmailList = new Dictionary<string, EmailExportModel>();
         public static Dictionary<string, List<string>> DictionaryForCategories = new Dictionary<string, List<string>>();
-
-        static void TraverseSubfolders(FolderInfo folderInfo, PersonalStorage personalStorage)
+        static void TraverseSubfolders(FolderInfo folderInfo, PersonalStorage personalStorage, CheckedListBox checkedListBox)
         {
             try
             {
@@ -389,54 +386,54 @@ namespace EmailProjectConsole
                             {
                                 MapiMessage mapi = personalStorage.ExtractMessage(messageInfo);
 
-                                EmailExportModel EmailItemModel = new EmailExportModel();
-                                EmailItemModel.Index = iIndex;
-                                EmailItemModel.Name = mapi.SenderName;
-                                EmailItemModel.Address = mapi.SenderEmailAddress;
-                                EmailItemModel.Subject = mapi.Subject;
-                                EmailItemModel.Body = mapi.Body;
-                                EmailItemModel.Categories = subfolder.DisplayName;
+                                EmailExportModel emailItemModel = new EmailExportModel();
+                                emailItemModel.Index = iIndex;
+                                emailItemModel.Name = mapi.SenderName;
+                                emailItemModel.Address = mapi.SenderEmailAddress;
+                                emailItemModel.Subject = mapi.Subject;
+                                emailItemModel.Body = mapi.Body;
+                                emailItemModel.Categories = subfolder.DisplayName;
 
                                 DateTime defaultDate = new DateTime(2000, 1, 1);
 
                                 // Use ClientSubmitTime for sent date
-                                EmailItemModel.SentDate = (mapi.ClientSubmitTime != DateTime.MinValue) ? mapi.ClientSubmitTime : defaultDate;
+                                emailItemModel.SentDate = (mapi.ClientSubmitTime != DateTime.MinValue) ? mapi.ClientSubmitTime : defaultDate;
 
                                 // Use DeliveryDate for received date
-                                EmailItemModel.ReceivedDate = (mapi.DeliveryTime != DateTime.MinValue) ? mapi.DeliveryTime : defaultDate;
+                                emailItemModel.ReceivedDate = (mapi.DeliveryTime != DateTime.MinValue) ? mapi.DeliveryTime : defaultDate;
 
-                                if (EmailItemModel.Address != null)
+                                if (emailItemModel.Address != null)
                                 {
-                                    if (EmailList.ContainsKey(EmailItemModel.Address))
+                                    if (EmailList.ContainsKey(emailItemModel.Address))
                                     {
                                         string categories;
 
-                                        if (DictionaryForCategories[EmailItemModel.Address].Contains(EmailItemModel.Categories))
+                                        if (DictionaryForCategories[emailItemModel.Address].Contains(emailItemModel.Categories))
                                         {
-                                            categories = EmailList[EmailItemModel.Address].Categories;
+                                            categories = EmailList[emailItemModel.Address].Categories;
                                         }
                                         else
                                         {
-                                            categories = EmailList[EmailItemModel.Address].Categories + ", " + EmailItemModel.Categories;
-                                            DictionaryForCategories[EmailItemModel.Address].Add(EmailItemModel.Categories);
+                                            categories = EmailList[emailItemModel.Address].Categories + ", " + emailItemModel.Categories;
+                                            DictionaryForCategories[emailItemModel.Address].Add(emailItemModel.Categories);
                                         }
 
-                                        EmailList[EmailItemModel.Address] = EmailItemModel;
-                                        EmailList[EmailItemModel.Address].Categories = categories;
+                                        EmailList[emailItemModel.Address] = emailItemModel;
+                                        EmailList[emailItemModel.Address].Categories = categories;
                                     }
                                     else
                                     {
-                                        EmailList.Add(EmailItemModel.Address, EmailItemModel);
+                                        EmailList.Add(emailItemModel.Address, emailItemModel);
                                         List<string> listOfCategories = new List<string>();
-                                        listOfCategories.Add(EmailItemModel.Categories);
-                                        DictionaryForCategories.Add(EmailItemModel.Address, listOfCategories);
+                                        listOfCategories.Add(emailItemModel.Categories);
+                                        DictionaryForCategories.Add(emailItemModel.Address, listOfCategories);
                                     }
                                 }
                                 iIndex++;
                             }
                         }
 
-                        TraverseSubfolders(subfolder, personalStorage);
+                        TraverseSubfolders(subfolder, personalStorage,checkedListBox);
                     }
                 }
                 else
@@ -456,53 +453,65 @@ namespace EmailProjectConsole
 
                             foreach (var recipient in mapi.Recipients)
                             {
-                                EmailExportModel EmailItemModel = new EmailExportModel();
-                                EmailItemModel.Index = iIndex;
-                                EmailItemModel.Name = recipient.DisplayName;
-                                EmailItemModel.Address = recipient.EmailAddress;
-                                EmailItemModel.Subject = mapi.Subject;
-                                EmailItemModel.Body = mapi.Body;
-                                EmailItemModel.Categories = folderInfo.DisplayName;
+                                EmailExportModel emailItemModel = new EmailExportModel();
+                                emailItemModel.Index = iIndex;
+                                emailItemModel.Name = recipient.DisplayName;
+                                emailItemModel.Address = recipient.EmailAddress;
+                                emailItemModel.Subject = mapi.Subject;
+                                emailItemModel.Body = mapi.Body;
+                                emailItemModel.Categories = folderInfo.DisplayName;
 
                                 DateTime defaultDate = new DateTime(2000, 1, 1); // or any other default value you prefer
 
                                 // Use ClientSubmitTime for sent date
-                                EmailItemModel.SentDate = (mapi.ClientSubmitTime != DateTime.MinValue) ? mapi.ClientSubmitTime : defaultDate;
+                                emailItemModel.SentDate = (mapi.ClientSubmitTime != DateTime.MinValue) ? mapi.ClientSubmitTime : defaultDate;
 
                                 // Use DeliveryDate for received date
-                                EmailItemModel.ReceivedDate = (mapi.DeliveryTime != DateTime.MinValue) ? mapi.DeliveryTime : defaultDate;
+                                emailItemModel.ReceivedDate = (mapi.DeliveryTime != DateTime.MinValue) ? mapi.DeliveryTime : defaultDate;
 
-                                if (EmailItemModel.Address != null)
+
+                                if (emailItemModel.Address != null)
+
                                 {
-                                    if (EmailList.ContainsKey(EmailItemModel.Address))
+
+                                    if (EmailList.ContainsKey(emailItemModel.Address))
                                     {
-                                        string categories;
-
-                                        if (DictionaryForCategories[EmailItemModel.Address].Contains(EmailItemModel.Categories))
+                                        if (checkedListBox.CheckedItems.Contains("Last Email From Each Address"))
                                         {
-                                            categories = EmailList[EmailItemModel.Address].Categories;
-                                        }
-                                        else
-                                        {
-                                            categories = EmailList[EmailItemModel.Address].Categories + ", " + EmailItemModel.Categories;
-                                            DictionaryForCategories[EmailItemModel.Address].Add(EmailItemModel.Categories);
+                                            string categories;
+
+                                            if (DictionaryForCategories[emailItemModel.Address].Contains(emailItemModel.Categories))
+                                            {
+                                                categories = EmailList[emailItemModel.Address].Categories;
+                                            }
+                                            else
+                                            {
+                                                categories = EmailList[emailItemModel.Address].Categories + ", " + emailItemModel.Categories;
+                                                DictionaryForCategories[emailItemModel.Address].Add(emailItemModel.Categories);
+                                            }
+
+                                            EmailList[emailItemModel.Address] = emailItemModel;
+                                            EmailList[emailItemModel.Address].Categories = categories;
                                         }
 
-                                        EmailList[EmailItemModel.Address] = EmailItemModel;
-                                        EmailList[EmailItemModel.Address].Categories = categories;
+                                       
                                     }
                                     else
                                     {
-                                        EmailList.Add(EmailItemModel.Address, EmailItemModel);
+                                        EmailList.Add(emailItemModel.Address, emailItemModel);
                                         List<string> listOfCategories = new List<string>();
-                                        listOfCategories.Add(EmailItemModel.Categories);
-                                        DictionaryForCategories.Add(EmailItemModel.Address, listOfCategories);
+                                        listOfCategories.Add(emailItemModel.Categories);
+                                        DictionaryForCategories.Add(emailItemModel.Address, listOfCategories);
                                     }
                                 }
+                                }
+                                
+
                                 iIndex++;
+
                             }
                         }
-                    }
+                    
                 }
             }
             catch (Exception ex)
@@ -510,103 +519,37 @@ namespace EmailProjectConsole
                 Console.WriteLine(ex);
             }
         }
-        private static DateTime GetReceivedDateFromHeaders(MapiMessage mapi)
-        {
-            string dateHeaderValue = mapi.Headers.Get("Date");
 
-            if (DateTime.TryParse(dateHeaderValue, out DateTime receivedDate))
-            {
-                return receivedDate;
-            }
-
-            // If parsing fails, return a default date or handle the situation accordingly
-            return DateTime.MinValue;
-        }
+ 
 
         private Dictionary<string, EmailExportModel> ImportPST(string pstFilePath)
         {
             try
             {
-
-
                 using (PersonalStorage personalStorage = PersonalStorage.FromFile(pstFilePath))
                 {
                     FolderInfoCollection rootFolders = personalStorage.RootFolder.GetSubFolders();
 
                     foreach (FolderInfo folderInfo in rootFolders)
                     {
-                        TraverseSubfolders(folderInfo, personalStorage);
+                        TraverseSubfolders(folderInfo, personalStorage, checkedListBox);
                     }
                 }
-
-
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error importing PST: {ex.Message}");
             }
+
             return EmailList;
         }
 
-        private static string[] GetExcelSheetNames(string strFilename)
-        {
-            OleDbConnection objConn = null;
-            DataTable dt = null;
+ 
 
-            try
-            {
-                String connString = string.Empty;
-                if (Path.GetExtension(strFilename).EndsWith("xls"))
-                    connString = "Provider=Microsoft.Jet.OLEDB.4.0;" + "Data Source=" + strFilename + ";" + "Extended Properties=\"Excel 8.0;HDR=Yes;IMEX=1\"";
-                else
-                    connString = "Provider=Microsoft.ACE.OLEDB.12.0;Data Source=" + strFilename + ";Extended Properties=\"Excel 12.0 Xml;HDR=Yes;IMEX=1\"";
 
-                objConn = new OleDbConnection(connString);
-                objConn.Open();
-
-                dt = objConn.GetOleDbSchemaTable(OleDbSchemaGuid.Tables, null);
-
-                if (dt == null)
-                {
-                    return null;
-                }
-
-                string[] excelSheets = new string[dt.Rows.Count];
-                int i = 0;
-
-                foreach (DataRow row in dt.Rows)
-                {
-                    excelSheets[i] = row["TABLE_NAME"].ToString();
-                    i++;
-                }
-
-                return excelSheets;
-            }
-            catch (Exception ex)
-            {
-                return null;
-            }
-            finally
-            {
-                if (objConn != null)
-                {
-                    objConn.Close();
-                    objConn.Dispose();
-                }
-                if (dt != null)
-                {
-                    dt.Dispose();
-                }
-            }
-        }
-
-        private void Form1_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        
     }
+
+
 
     public class EmailExportModel
     {
